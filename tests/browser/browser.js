@@ -2,7 +2,7 @@ import { jest } from '@jest/globals'
 import { latest } from '../../lib/enterprise-server-releases.js'
 import languages from '../../lib/languages.js'
 
-jest.useFakeTimers('legacy')
+jest.useFakeTimers()
 
 /* global page, browser */
 describe('homepage', () => {
@@ -292,38 +292,44 @@ describe('tool specific content', () => {
 
   it('should have a tool switcher if a tool switcher is included', async () => {
     await page.goto(pageWithSingleSwitcher)
-    const nav = await page.$$('[data-testid="tool-picker"]')
-    const switches = await page.$$('[data-testid="tool-picker"] button')
-    const selectedSwitch = await page.$$('[data-testid="tool-picker"] button.selected')
+    const nav = await page.$$('nav#tool-switcher')
+    const switches = await page.$$('a.tool-switcher')
+    const selectedSwitch = await page.$$('a.tool-switcher.selected')
     expect(nav).toHaveLength(1)
     expect(switches.length).toBeGreaterThan(1)
     expect(selectedSwitch).toHaveLength(1)
   })
 
+  it('should have multiple tool switchers if multiple tools switchers are included', async () => {
+    await page.goto(pageWithMultipleSwitcher)
+    const toolSelector = await page.$$('nav#tool-switcher')
+    const switches = await page.$$('a.tool-switcher')
+    const selectedSwitch = await page.$$('a.tool-switcher.selected')
+    expect(toolSelector.length).toBeGreaterThan(1)
+    expect(switches.length).toBeGreaterThan(1)
+    expect(selectedSwitch.length).toEqual(toolSelector.length)
+  })
+
   it('should NOT have a tool switcher if no tool switcher is included', async () => {
     await page.goto(pageWithoutSwitcher)
-    const nav = await page.$$('[data-testid="tool-picker"]')
-    const switches = await page.$$('[data-testid="tool-picker"] button')
-    const selectedSwitch = await page.$$('[data-testid="tool-picker"] button.selected')
-    expect(nav).toHaveLength(0)
+    const toolSelector = await page.$$('nav#tool-switcher')
+    const switches = await page.$$('a.tool-switcher')
+    const selectedSwitch = await page.$$('a.tool-switcher.selected')
+    expect(toolSelector).toHaveLength(0)
     expect(switches).toHaveLength(0)
     expect(selectedSwitch).toHaveLength(0)
   })
 
   it('should use cli if no defaultTool is specified and if webui is not one of the tools', async () => {
     await page.goto(pageWithMultipleSwitcher)
-    const selectedToolElement = await page.waitForSelector(
-      '[data-testid="tool-picker"] button.selected'
-    )
+    const selectedToolElement = await page.waitForSelector('a.tool-switcher.selected')
     const selectedTool = await page.evaluate((el) => el.textContent, selectedToolElement)
     expect(selectedTool).toBe('GitHub CLI')
   })
 
   it('should use webui if no defaultTool is specified and if webui is one of the tools', async () => {
     await page.goto(pageWithSingleSwitcher)
-    const selectedToolElement = await page.waitForSelector(
-      '[data-testid="tool-picker"] button.selected'
-    )
+    const selectedToolElement = await page.waitForSelector('a.tool-switcher.selected')
     const selectedTool = await page.evaluate((el) => el.textContent, selectedToolElement)
     expect(selectedTool).toBe('Web browser')
   })
@@ -331,17 +337,15 @@ describe('tool specific content', () => {
   it('should use the recorded user selection', async () => {
     // With no user data, the selected tool is GitHub.com
     await page.goto(pageWithSingleSwitcher)
-    let selectedToolElement = await page.waitForSelector(
-      '[data-testid="tool-picker"] button.selected'
-    )
+    let selectedToolElement = await page.waitForSelector('a.tool-switcher.selected')
     let selectedTool = await page.evaluate((el) => el.textContent, selectedToolElement)
     expect(selectedTool).toBe('Web browser')
 
-    await page.click('[data-testid="tool-picker"] [data-tool="cli"]')
+    await page.click(`.tool-switcher[data-tool="cli"]`)
 
     // Revisiting the page after CLI is selected results in CLI as the selected tool
     await page.goto(pageWithSingleSwitcher)
-    selectedToolElement = await page.waitForSelector('[data-testid="tool-picker"] button.selected')
+    selectedToolElement = await page.waitForSelector('a.tool-switcher.selected')
     selectedTool = await page.evaluate((el) => el.textContent, selectedToolElement)
     expect(selectedTool).toBe('GitHub CLI')
   })
@@ -351,13 +355,13 @@ describe('tool specific content', () => {
 
     const tools = ['webui', 'cli']
     for (const tool of tools) {
-      await page.click(`[data-tool="${tool}"]`)
+      await page.click(`.tool-switcher[data-tool="${tool}"]`)
 
       // content for selected tool is expected to become visible
       await page.waitForSelector(`.extended-markdown.${tool}`, { visible: true, timeout: 3000 })
 
       // only a single tab should be selected
-      const selectedSwitch = await page.$$('[data-testid="tool-picker"] button.selected')
+      const selectedSwitch = await page.$$('a.tool-switcher.selected')
       expect(selectedSwitch).toHaveLength(1)
 
       // content for NOT selected tools is expected to become hidden
@@ -365,6 +369,27 @@ describe('tool specific content', () => {
       for (const other of otherTools) {
         await page.waitForSelector(`.extended-markdown.${other}`, { hidden: true, timeout: 3000 })
       }
+    }
+  })
+
+  it('selecting a tool in one switcher will control all tool switchers on the page', async () => {
+    await page.goto(pageWithMultipleSwitcher)
+
+    const tools = { cli: 'GitHub CLI', curl: 'cURL' }
+    for (const [tool, toolName] of Object.entries(tools)) {
+      await page.click(`.tool-switcher[data-tool="${tool}"]`)
+
+      // content for selected tool is expected to become visible
+      await page.waitForSelector(`.extended-markdown.${tool}`, { visible: true, timeout: 3000 })
+
+      // all tabs should be selected
+      const toolSelector = await page.$$('nav#tool-switcher')
+      const selectedSwitch = await page.$$('a.tool-switcher.selected')
+      expect(selectedSwitch).toHaveLength(toolSelector.length)
+
+      const selectedToolElement = await page.waitForSelector('a.tool-switcher.selected')
+      const selectedTool = await page.evaluate((el) => el.textContent, selectedToolElement)
+      expect(selectedTool).toBe(toolName)
     }
   })
 })

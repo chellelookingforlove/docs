@@ -14,7 +14,6 @@ topics:
   - Codespaces
   - Fundamentals
   - Developer
-shortTitle: Create a codespace
 ---
 
 ## About codespace creation
