@@ -13,7 +13,6 @@ topics:
   - Codespaces
   - Fundamentals
   - Developer
-shortTitle: Delete a codespace
 ---
 
  

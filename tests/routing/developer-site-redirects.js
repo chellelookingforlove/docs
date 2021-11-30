@@ -10,7 +10,7 @@ const developerRedirectFixtures = readJsonFile('./tests/fixtures/developer-redir
 
 const MAX_CONCURRENT_REQUESTS = 50
 
-jest.useFakeTimers('legacy')
+jest.useFakeTimers()
 
 describe('developer redirects', () => {
   jest.setTimeout(4 * 60 * 1000)
